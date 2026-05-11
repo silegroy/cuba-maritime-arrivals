@@ -1,20 +1,13 @@
 import streamlit as st
-import pandas as pd
-import pydeck as pdk
-import altair as alt
-
-from config import CUBA_PORTS
 from db import get_connection
 
-st.set_page_config(page_title="Arribos Marítimos a Cuba", layout="wide")
+st.title("Comprobación de conexión a Supabase")
 
-st.title("🚢 Arribos Marítimos a Puertos de Cuba")
-
-@st.cache_data
-def load_data():
+try:
     conn = get_connection()
-    df = pd.read_sql("SELECT * FROM arrivals", conn)
+    st.success("✅ Conectado a Supabase correctamente")
     conn.close()
-    return df
-
-df = load_data()
+except Exception as e:
+    st.error("❌ Error real de PostgreSQL:")
+    st.code(str(e))
+    st.stop()
