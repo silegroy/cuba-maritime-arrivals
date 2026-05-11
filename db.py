@@ -8,6 +8,6 @@ def get_connection():
         dbname=os.environ["DB_NAME"],
         user=os.environ["DB_USER"],
         password=os.environ["DB_PASSWORD"],
-        port=os.environ["DB_PORT"],
-        sslmode="require"   # 👈 ESTA LÍNEA ES LA CLAVE
+        port=int(os.environ["DB_PORT"]),   # ✅ CAST OBLIGATORIO
+        sslmode="require"                  # ✅ REQUERIDO POR SUPABASE
     )
