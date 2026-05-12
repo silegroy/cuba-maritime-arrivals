@@ -83,19 +83,20 @@ st.subheader("📊 Análisis de arribos")
 if df.empty:
     st.info("Aún no hay registros en la base de datos.")
 else:
-    # -------- Arribos por país --------
     if "origin_country" in df.columns:
-        st.markdown("**Arribos por país de origen**")
-
         df_country = (
             df.groupby("origin_country")
             .size()
             .reset_index(name="arrivals")
         )
 
-        chart_country = alt.Chart(df_country).mark_bar().encode(
-            x=alt.X("origin_country:N", title="País de origen"),
-            y=alt.Y("arrivals:Q", title="Número de arribos"),
-            tooltip=["origin_country", "arrivals"]
-        )
+        if not df_country.empty:
+            chart_country = alt.Chart(df_country).mark_bar().encode(
+                x=alt.X("origin_country:N", title="País de origen"),
+                y=alt.Y("arrivals:Q", title="Número de arribos"),
+                tooltip=["origin_country", "arrivals"],
+            )
+
+            st.markdown("**Arribos por país de origen**")
+            st.altair_chart(chart_country, use_container_width=True)
 
