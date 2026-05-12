@@ -5,8 +5,8 @@ import altair as alt
 
 from db import get_supabase
 from config import CUBA_PORTS
-from scraper_test import run_test_scraper
-
+#from scraper_test import run_test_scraper
+from scraper_real import run_real_scraper
 
 
 # ----------------------------
@@ -18,11 +18,14 @@ st.set_page_config(
 )
 
 st.title("🚢 Arribos Marítimos a Puertos de Cuba")
-if st.button("Insertar datos de prueba"):
-    run_test_scraper()
-    st.success("Datos de prueba insertados")
+# if st.button("Insertar datos de prueba"):
+#     run_test_scraper()
+#     st.success("Datos de prueba insertados")
+#     st.cache_data.clear()
+if st.button("🚢 Ejecutar scraper real"):
+    run_real_scraper()
+    st.success("Scraper ejecutado correctamente")
     st.cache_data.clear()
-
 st.caption("Datos obtenidos vía Supabase Data API (REST)")
 
 
