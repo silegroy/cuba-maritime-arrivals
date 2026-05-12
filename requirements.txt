@@ -1,7 +1,5 @@
 streamlit
-psycopg2-binary
+supabase
 pandas
-requests
-beautifulsoup4
 pydeck
 altair
