@@ -1,4 +1,3 @@
-# db.py
 import psycopg2
 import os
 
@@ -8,6 +7,7 @@ def get_connection():
         dbname=os.environ["DB_NAME"],
         user=os.environ["DB_USER"],
         password=os.environ["DB_PASSWORD"],
-        port=int(os.environ["DB_PORT"]),   # ✅ CAST OBLIGATORIO
-        sslmode="require"                  # ✅ REQUERIDO POR SUPABASE
+        port=int(os.environ["DB_PORT"]),
+        sslmode="require",
+        connect_timeout=10
     )
