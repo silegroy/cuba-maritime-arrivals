@@ -113,3 +113,20 @@ chart_country = alt.Chart(df_country).mark_bar().encode(
 
 st.markdown("### 🌎 Barcos por país de origen")
 st.altair_chart(chart_country, use_container_width=True)
+
+df_type = (
+    df.dropna(subset=["origin_country", "vessel_type"])
+    .groupby(["origin_country", "vessel_type"])
+    .size()
+    .reset_index(name="arrivals")
+)
+
+chart_type = alt.Chart(df_type).mark_bar().encode(
+    x="origin_country:N",
+    y="arrivals:Q",
+    color="vessel_type:N",
+    tooltip=["origin_country", "vessel_type", "arrivals"]
+)
+
+st.markdown("### 🚢 País vs tipo de buque")
+st.altair_chart(chart_type, use_container_width=True)
