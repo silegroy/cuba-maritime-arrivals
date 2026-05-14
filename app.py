@@ -96,3 +96,20 @@ else:
         ),
         use_container_width=True
     )
+
+df_country = (
+    df.dropna(subset=["origin_country"])
+    .groupby("origin_country")
+    .size()
+    .reset_index(name="arrivals")
+    .sort_values("arrivals", ascending=False)
+)
+
+chart_country = alt.Chart(df_country).mark_bar().encode(
+    x=alt.X("arrivals:Q", title="Cantidad de barcos"),
+    y=alt.Y("origin_country:N", sort='-x', title="País"),
+    tooltip=["origin_country", "arrivals"]
+)
+
+st.markdown("### 🌎 Barcos por país de origen")
+st.altair_chart(chart_country, use_container_width=True)
