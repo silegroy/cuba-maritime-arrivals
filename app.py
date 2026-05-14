@@ -1,135 +1,92 @@
 # ----------------------------
 # IMPORTS
 # ----------------------------
-# Streamlit: framework web
-import streamlit as st
+import streamlit as st               # Framework web
+import pandas as pd                # Manipulación de datos
+import pydeck as pdk               # Mapas
+import altair as alt               # Gráficos
 
-# Pandas: manejo de datos
-import pandas as pd
-
-# Pydeck: mapas
-import pydeck as pdk
-
-# Altair: gráficos
-import altair as alt
-
-# Cliente Supabase (Data API)
-from db import get_supabase
-
-# Coordenadas de puertos
-from config import CUBA_PORTS
-
-# Scraper que inserta datos
-from scraper_real import run_real_scraper
-
+from db import get_supabase         # Cliente Supabase
+from config import CUBA_PORTS       # Coordenadas de puertos
+from scraper_real import run_real_scraper  # Scraper
 
 # ----------------------------
-# CONFIGURACIÓN INICIAL
+# CONFIGURACIÓN
 # ----------------------------
-# Configura la página de Streamlit
 st.set_page_config(
     page_title="🚢 Arribos Marítimos a Cuba",
     layout="wide"
 )
 
-# Título principal
 st.title("🚢 Arribos Marítimos a Puertos de Cuba")
-
-# Descripción
-st.caption("Datos obtenidos vía Supabase Data API (REST)")
-
+st.caption("Visualización interactiva de tráfico marítimo")
 
 # ----------------------------
-# BOTÓN PARA EJECUTAR SCRAPER
+# BOTÓN SCRAPER
 # ----------------------------
-# Permite insertar nuevos datos manualmente
 if st.button("🚢 Ejecutar scraper real"):
-    run_real_scraper()  # Llama al scraper
+    run_real_scraper()
     st.success("Scraper ejecutado correctamente")
-    st.cache_data.clear()  # Limpia caché para ver nuevos datos
-
+    st.cache_data.clear()
 
 # ----------------------------
-# MAPA (SE MUESTRA RÁPIDO)
+# MAPA
 # ----------------------------
-# No depende de la base de datos → mejora UX
 st.subheader("📍 Puertos de Cuba")
 
 layer = pdk.Layer(
     "ScatterplotLayer",
-    data=CUBA_PORTS,  # Datos estáticos
-    get_position="[lon, lat]",  # Coordenadas
-    get_radius=7000,  # Tamaño del punto
-    get_color=[200, 30, 0],  # Color rojo
+    data=CUBA_PORTS,
+    get_position="[lon, lat]",
+    get_radius=7000,
+    get_color=[200, 30, 0]
 )
 
-view_state = pdk.ViewState(
-    latitude=22,
-    longitude=-80,
-    zoom=5,
-)
+view_state = pdk.ViewState(latitude=22, longitude=-80, zoom=5)
 
-st.pydeck_chart(
-    pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state
-    )
-)
+st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state))
 
 
 # ----------------------------
 # CARGA DE DATOS OPTIMIZADA
 # ----------------------------
-# Conexión a Supabase
 supabase = get_supabase()
 
-# Cachea la consulta (no se ejecuta siempre)
 @st.cache_data(ttl=600)
 def load_data():
     response = (
         supabase
         .table("arrivals")
-        .select(  # Solo columnas necesarias → más rápido
-            "vessel_name, vessel_type, origin_country, destination_port, arrival_date"
-        )
+        .select("vessel_name, vessel_type, origin_country, destination_port, arrival_date")
         .order("arrival_date", desc=True)
-        .limit(500)  # Limita resultados
+        .limit(500)
         .execute()
     )
 
-    # Convierte a DataFrame
-    df = pd.DataFrame(response.data)
-    return df
+    return pd.DataFrame(response.data)
 
-
-# Indicador de carga
 with st.spinner("Cargando datos..."):
     df = load_data()
 
-
 # ----------------------------
-# LIMPIEZA DE DATOS
+# LIMPIEZA
 # ----------------------------
-# Normaliza nombres de columnas
 df.columns = [c.lower() for c in df.columns]
 
-# Convierte fechas
 df["arrival_date"] = pd.to_datetime(df["arrival_date"], errors="coerce")
 
-# Elimina duplicados
+# QUITA DUPLICADOS → evita conteos falsos
 df = df.drop_duplicates(
     subset=["vessel_name", "arrival_date", "destination_port"]
 )
 
-
 # ----------------------------
-# FILTROS INTERACTIVOS
+# FILTROS
 # ----------------------------
 st.subheader("🔎 Filtros")
 
 col1, col2, col3 = st.columns(3)
 
-# Filtro por país
 with col1:
     countries = st.multiselect(
         "País de origen",
@@ -137,7 +94,6 @@ with col1:
         default=df["origin_country"].dropna().unique()
     )
 
-# Filtro por puerto
 with col2:
     ports = st.multiselect(
         "Puerto destino",
@@ -145,7 +101,6 @@ with col2:
         default=df["destination_port"].dropna().unique()
     )
 
-# Filtro por tipo de barco
 with col3:
     vessel_types = st.multiselect(
         "Tipo de buque",
@@ -160,9 +115,8 @@ df_filtered = df[
     df["vessel_type"].isin(vessel_types)
 ]
 
-
 # ----------------------------
-# KPIs (INDICADORES RÁPIDOS)
+# KPIs (ahora claros)
 # ----------------------------
 col1, col2, col3 = st.columns(3)
 
@@ -172,7 +126,7 @@ col3.metric("⚓ Puertos activos", df_filtered["destination_port"].nunique())
 
 
 # ----------------------------
-# ANÁLISIS CON GRÁFICOS PASTEL
+# ANÁLISIS
 # ----------------------------
 st.subheader("📊 Análisis de arribos")
 
@@ -182,20 +136,20 @@ if df_filtered.empty:
 else:
 
     # -------------------------
-    # 1. PASTEL: BARCOS POR PAÍS
+    # ✅ 1. DISTRIBUCIÓN POR PAÍS
     # -------------------------
     df_country = (
         df_filtered.groupby("origin_country")
         .size()
-        .reset_index(name="arrivals")
+        .reset_index(name="barcos")
     )
 
     chart_country = alt.Chart(df_country).mark_arc().encode(
-        theta="arrivals:Q",  # tamaño del sector
-        color="origin_country:N",
+        theta=alt.Theta("barcos:Q", title="Cantidad de barcos"),
+        color=alt.Color("origin_country:N", title="País"),
         tooltip=[
             alt.Tooltip("origin_country:N", title="País"),
-            alt.Tooltip("arrivals:Q", title="Cantidad de barcos")
+            alt.Tooltip("barcos:Q", title="Cantidad de barcos")
         ]
     )
 
@@ -204,20 +158,20 @@ else:
 
 
     # -------------------------
-    # 2. PASTEL: TIPO DE BUQUE
+    # ✅ 2. DISTRIBUCIÓN POR TIPO DE BUQUE
     # -------------------------
     df_type = (
         df_filtered.groupby("vessel_type")
         .size()
-        .reset_index(name="arrivals")
+        .reset_index(name="barcos")
     )
 
     chart_type = alt.Chart(df_type).mark_arc().encode(
-        theta="arrivals:Q",
-        color="vessel_type:N",
+        theta="barcos:Q",
+        color=alt.Color("vessel_type:N", title="Tipo de buque"),
         tooltip=[
-            alt.Tooltip("vessel_type:N", title="Tipo de buque"),
-            alt.Tooltip("arrivals:Q", title="Cantidad de barcos")
+            alt.Tooltip("vessel_type:N", title="Tipo"),
+            alt.Tooltip("barcos:Q", title="Número de barcos")
         ]
     )
 
@@ -226,7 +180,7 @@ else:
 
 
     # -------------------------
-    # 3. TONELAJE ESTIMADO
+    # ✅ 3. TONELAJE ESTIMADO
     # -------------------------
     tonnage_map = {
         "Container": 50000,
@@ -234,50 +188,44 @@ else:
         "General Cargo": 20000
     }
 
-    df_filtered["estimated_tonnage"] = df_filtered["vessel_type"].map(tonnage_map)
+    df_filtered["tonelaje"] = df_filtered["vessel_type"].map(tonnage_map)
 
     df_ton = (
-        df_filtered.groupby("origin_country")["estimated_tonnage"]
+        df_filtered.groupby("origin_country")["tonelaje"]
         .sum()
         .reset_index()
     )
 
     chart_ton = alt.Chart(df_ton).mark_arc().encode(
-        theta="estimated_tonnage:Q",
-        color="origin_country:N",
+        theta="tonelaje:Q",
+        color=alt.Color("origin_country:N"),
         tooltip=[
             alt.Tooltip("origin_country:N", title="País"),
-            alt.Tooltip("estimated_tonnage:Q", title="Tonelaje estimado")
+            alt.Tooltip("tonelaje:Q", title="Tonelaje estimado")
         ]
     )
 
-    st.markdown("### ⚖️ Distribución de tonelaje estimado")
+    st.markdown("### ⚖️ Distribución de carga estimada")
     st.altair_chart(chart_ton, use_container_width=True)
 
 
     # -------------------------
-    # 4. EVOLUCIÓN POR AÑO
+    # ✅ 4. EVOLUCIÓN POR AÑO (CORREGIDA)
     # -------------------------
     df_filtered["year"] = df_filtered["arrival_date"].dt.year
 
     df_year = (
-        df_filtered.groupby("year")
+        df_filtered.groupby(["year", "origin_country"])
         .size()
-        .reset_index(name="arrivals")
+        .reset_index(name="barcos")
     )
 
-    chart_year = alt.Chart(df_year).mark_bar().encode(
-        x=alt.X("year:O", title="Año de llegada"),
-        y=alt.Y("arrivals:Q", title="Cantidad de barcos"),
-        tooltip=["year", "arrivals"]
+    chart_year = alt.Chart(df_year).mark_line(point=True).encode(
+        x=alt.X("year:O", title="Año real de llegada"),
+        y=alt.Y("barcos:Q", title="Cantidad de barcos"),
+        color=alt.Color("origin_country:N", title="País"),
+        tooltip=["year", "origin_country", "barcos"]
     )
 
-    st.markdown("### 📈 Evolución de arribos por año")
+    st.markdown("### 📈 Evolución real de arribos por país")
     st.altair_chart(chart_year, use_container_width=True)
-
-
-# ----------------------------
-# TABLA FINAL
-# ----------------------------
-st.subheader("📋 Detalle de arribos")
-st.dataframe(df_filtered, use_container_width=True)
