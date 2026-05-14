@@ -46,3 +46,53 @@ st.pydeck_chart(
     )
 )
 
+# ----------------------------
+# CARGA OPTIMIZADA DE DATOS
+# ----------------------------
+
+supabase = get_supabase()
+
+@st.cache_data(ttl=600)
+def load_arrivals():
+    response = (
+        supabase
+        .table("arrivals")
+        .select(
+            "vessel_name, vessel_type, origin_country, destination_port, arrival_date"
+        )
+        .order("arrival_date", desc=True)
+        .limit(500)
+        .execute()
+    )
+    df = pd.DataFrame(response.data)
+    return df
+st.subheader("📊 Análisis de arribos")
+
+with st.spinner("Cargando datos..."):
+    df = load_arrivals()
+
+# Normalizar columnas
+df.columns = [c.lower() for c in df.columns]
+
+if "arrival_date" in df.columns:
+    df["arrival_date"] = pd.to_datetime(df["arrival_date"], errors="coerce")
+
+if df.empty:
+    st.info("Aún no hay registros.")
+else:
+    # Arribos por país
+    df_country = (
+        df.dropna(subset=["origin_country"])
+        .groupby("origin_country")
+        .size()
+        .reset_index(name="arrivals")
+    )
+
+    st.markdown("**Arribos por país**")
+    st.altair_chart(
+        alt.Chart(df_country).mark_bar().encode(
+            x="origin_country:N",
+            y="arrivals:Q"
+        ),
+        use_container_width=True
+    )
