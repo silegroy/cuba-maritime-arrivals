@@ -130,3 +130,27 @@ chart_type = alt.Chart(df_type).mark_bar().encode(
 
 st.markdown("### 🚢 País vs tipo de buque")
 st.altair_chart(chart_type, use_container_width=True)
+
+tonnage_map = {
+    "Container": 50000,
+    "Tanker": 80000,
+    "General Cargo": 20000
+}
+
+df["estimated_tonnage"] = df["vessel_type"].map(tonnage_map)
+
+df_ton = (
+    df.dropna(subset=["origin_country", "estimated_tonnage"])
+    .groupby("origin_country")["estimated_tonnage"]
+    .sum()
+    .reset_index()
+)
+
+chart_ton = alt.Chart(df_ton).mark_bar().encode(
+    x="origin_country:N",
+    y="estimated_tonnage:Q",
+    tooltip=["origin_country", "estimated_tonnage"]
+)
+
+st.markdown("### ⚖️ Tonelaje estimado por país")
+st.altair_chart(chart_ton, use_container_width=True)
