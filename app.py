@@ -154,3 +154,25 @@ chart_ton = alt.Chart(df_ton).mark_bar().encode(
 
 st.markdown("### ⚖️ Tonelaje estimado por país")
 st.altair_chart(chart_ton, use_container_width=True)
+
+df["arrival_date"] = pd.to_datetime(df["arrival_date"], errors="coerce")
+df["year"] = df["arrival_date"].dt.year
+
+df_year = df[(df["year"] >= 2018) & (df["year"] <= 2026)]
+
+df_country_year = (
+    df_year.dropna(subset=["origin_country"])
+    .groupby(["year", "origin_country"])
+    .size()
+    .reset_index(name="arrivals")
+)
+
+chart_year = alt.Chart(df_country_year).mark_line(point=True).encode(
+    x="year:O",
+    y="arrivals:Q",
+    color="origin_country:N",
+    tooltip=["year", "origin_country", "arrivals"]
+)
+
+st.markdown("### 📈 Evolución de arribos por país (2018–2026)")
+st.altair_chart(chart_year, use_container_width=True)
